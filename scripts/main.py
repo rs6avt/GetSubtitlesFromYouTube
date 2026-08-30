@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from pathlib import Path
 from urllib.error import URLError
@@ -6,8 +7,10 @@ from urllib.request import Request, urlopen
 
 import streamlit as st
 from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled, YouTubeTranscriptApi
+from youtube_transcript_api.proxies import WebshareProxyConfig
 
-CACHE_DIR = Path(__file__).resolve().parent.parent / ".cache" / "transcripts"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CACHE_DIR = PROJECT_ROOT / ".cache" / "transcripts"
 VIDEO_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{11}$")
 
 st.title("YouTube 字幕取得ツール")
@@ -29,6 +32,50 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+
+def load_dotenv_file():
+    env_path = PROJECT_ROOT / ".env"
+    if not env_path.is_file():
+        return
+    for raw in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip("'").strip('"')
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+def webshare_credentials():
+    username = os.environ.get("WEBSHARE_USERNAME", "").strip()
+    password = os.environ.get("WEBSHARE_PASSWORD", "").strip()
+    if username and password:
+        return username, password
+    try:
+        username = str(st.secrets.get("WEBSHARE_USERNAME", "")).strip()
+        password = str(st.secrets.get("WEBSHARE_PASSWORD", "")).strip()
+    except Exception:
+        username, password = "", ""
+    return username, password
+
+
+def build_transcript_client():
+    username, password = webshare_credentials()
+    if not username or not password:
+        raise RuntimeError(
+            "Webshareの認証情報がありません。"
+            ".streamlit/secrets.toml か Streamlit Cloud の Secrets、"
+            "または .env に WEBSHARE_USERNAME と WEBSHARE_PASSWORD を設定してください。"
+        )
+    return YouTubeTranscriptApi(
+        proxy_config=WebshareProxyConfig(
+            proxy_username=username,
+            proxy_password=password,
+        )
+    )
 
 
 def get_id(input_text):
@@ -102,7 +149,7 @@ def get_video_meta(video_id):
 
 
 def fetch_from_youtube(video_id):
-    ytt = YouTubeTranscriptApi()
+    ytt = build_transcript_client()
     transcript_list = ytt.list(video_id)
     transcript = transcript_list.find_transcript(["ja", "ja-JP", "en"]).fetch()
     items = [{"start": item.start, "text": item.text} for item in transcript]
@@ -198,6 +245,7 @@ def render_result(result, from_cache, cache_fallback=False):
         )
 
 
+load_dotenv_file()
 init_session_state()
 
 user_input = st.text_input("YouTubeのURLまたは動画IDを入力してください")
