@@ -1,6 +1,10 @@
-import streamlit as st
+import json
 import re
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+from urllib.error import URLError
+from urllib.request import Request, urlopen
+
+import streamlit as st
+from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled, YouTubeTranscriptApi
 
 st.title("YouTube 字幕取得ツール")
 
@@ -13,6 +17,9 @@ st.markdown(
         overflow-wrap: anywhere !important;
         word-break: break-word !important;
         overflow-x: hidden !important;
+    }
+    [data-testid="stImage"] img {
+        border-radius: 12px;
     }
     </style>
     """,
@@ -29,9 +36,44 @@ def format_time(seconds):
     return f"[{minutes:02d}:{secs:02d}]"
 
 def format_plain_text_with_breaks(transcript):
-    # タイムスタンプを含めず、テキストのみを1行ずつ結合
     lines = [item.text for item in transcript]
     return "\n".join(lines)
+
+def get_video_meta(video_id):
+    thumbnail_url = f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+    watch_url = f"https://www.youtube.com/watch?v={video_id}"
+    oembed_url = f"https://www.youtube.com/oembed?url={watch_url}&format=json"
+    title = ""
+    author = ""
+    try:
+        req = Request(oembed_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+        title = data.get("title") or ""
+        author = data.get("author_name") or ""
+    except (URLError, TimeoutError, json.JSONDecodeError, OSError):
+        pass
+    return {
+        "title": title,
+        "author": author,
+        "thumbnail_url": thumbnail_url,
+        "watch_url": watch_url,
+    }
+
+def render_video_header(video_id):
+    meta = get_video_meta(video_id)
+    with st.container(border=True):
+        col_thumb, col_info = st.columns([1, 2], gap="large", vertical_alignment="center")
+        with col_thumb:
+            st.image(meta["thumbnail_url"], use_container_width=True)
+        with col_info:
+            if meta["title"]:
+                st.subheader(meta["title"])
+            else:
+                st.subheader("タイトルを取得できませんでした")
+            if meta["author"]:
+                st.caption(meta["author"])
+            st.link_button("YouTubeで開く", meta["watch_url"])
 
 user_input = st.text_input("YouTubeのURLまたは動画IDを入力してください")
 
@@ -51,6 +93,7 @@ if st.button("字幕を取得"):
             plain_text = format_plain_text_with_breaks(transcript)
 
             st.success("取得成功！")
+            render_video_header(video_id)
 
             tab1, tab2 = st.tabs(["🕒 タイムスタンプ付き", "📝 テキストのみ（文章）"])
 
