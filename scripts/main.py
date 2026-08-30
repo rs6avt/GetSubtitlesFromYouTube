@@ -30,16 +30,13 @@ if st.button("字幕を取得"):
             transcript_list = ytt.list(video_id)
             transcript = transcript_list.find_transcript(['ja', 'ja-JP', 'en']).fetch()
 
-            # 1. タイムスタンプ付きテキストの生成
             lines_with_time = [f"{format_time(item.start)} {item.text}" for item in transcript]
             formatted_text_with_time = "\n".join(lines_with_time)
 
-            # 2. 文章のみ（プレーンテキスト）の生成
             plain_text = format_plain_text_with_breaks(transcript)
 
             st.success("取得成功！")
 
-            # タブで表示を切り替えられるようにする
             tab1, tab2 = st.tabs(["🕒 タイムスタンプ付き", "📝 テキストのみ（文章）"])
 
             with tab1:
@@ -61,6 +58,6 @@ if st.button("字幕を取得"):
             if "blocking requests" in error_msg or "IP" in error_msg:
                 st.error("エラー: YouTube側からアクセス制限（IPブロック）を受けています。時間を置いて再試行するか、別の動画でお試しください。")
             else:
-                st.error(f"エラー詳細: {e}")
+                st.error(f"エラー詳細: {error_msg}")
     else:
         st.warning("入力してください。")
