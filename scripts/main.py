@@ -4,6 +4,21 @@ from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, No
 
 st.title("YouTube 字幕取得ツール")
 
+st.markdown(
+    """
+    <style>
+    [data-testid="stCode"] pre,
+    [data-testid="stCode"] code {
+        white-space: pre-wrap !important;
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
+        overflow-x: hidden !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 def get_id(input_text):
     match = re.search(r"(?:v=|\/)([a-zA-Z0-9_-]{11})", input_text)
     return match.group(1) if match else input_text.strip()
@@ -41,12 +56,12 @@ if st.button("字幕を取得"):
 
             with tab1:
                 st.caption("※右上のアイコンからワンクリックでコピーできます")
-                st.code(formatted_text_with_time, language="text", height=400)
+                st.code(formatted_text_with_time, language="text", height=400, wrap_lines=True)
                 st.download_button("タイムスタンプ付きファイルをダウンロード", formatted_text_with_time, f"{video_id}_timestamp.txt")
 
             with tab2:
                 st.caption("※右上のアイコンからワンクリックでコピーできます")
-                st.code(plain_text, language="text", height=400)
+                st.code(plain_text, language="text", height=400, wrap_lines=True)
                 st.download_button("テキストファイルをダウンロード", plain_text, f"{video_id}_plain.txt")
 
         except TranscriptsDisabled:
