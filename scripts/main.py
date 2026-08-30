@@ -57,6 +57,10 @@ if st.button("字幕を取得"):
         except NoTranscriptFound:
             st.error("エラー: 指定された言語の字幕が見つかりませんでした。")
         except Exception as e:
-            st.error(f"エラー詳細: {e}")
+            error_msg = str(e)
+            if "blocking requests" in error_msg or "IP" in error_msg:
+                st.error("エラー: YouTube側からアクセス制限（IPブロック）を受けています。時間を置いて再試行するか、別の動画でお試しください。")
+            else:
+                st.error(f"エラー詳細: {e}")
     else:
         st.warning("入力してください。")
